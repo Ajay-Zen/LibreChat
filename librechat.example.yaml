@@ -127,8 +127,8 @@ interface:
   bookmarks: true
   multiConvo: true
   agents:
-    use: true
-    create: true
+    use: false
+    create: false
     share: false
     public: false
   peoplePicker:
