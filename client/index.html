@@ -29,12 +29,12 @@
       if (theme === 'dark') {
         backgroundColor = '#0d0d0d';
       } else if (theme === 'light') {
-        backgroundColor = '#ffffff';
+        backgroundColor = '#faf9f5';
       } else if (theme === 'system') {
         const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        backgroundColor = prefersDarkScheme ? '#0d0d0d' : '#ffffff';
+        backgroundColor = prefersDarkScheme ? '#0d0d0d' : '#faf9f5';
       } else {
-        backgroundColor = '#ffffff';
+        backgroundColor = '#faf9f5';
       }
 
       loadingContainerStyle.innerHTML = `
