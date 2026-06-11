@@ -31,6 +31,7 @@ const Image = ({
   args,
   width,
   height,
+  onPreview,
 }: {
   imagePath: string;
   altText: string;
@@ -44,6 +45,9 @@ const Image = ({
   };
   width?: number;
   height?: number;
+  /** When provided, tapping the image runs this (open right-side preview)
+   * instead of the built-in center lightbox dialog. */
+  onPreview?: () => void;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -109,8 +113,8 @@ const Image = ({
         ref={triggerRef}
         type="button"
         aria-label={`View ${altText} in dialog`}
-        aria-haspopup="dialog"
-        onClick={() => setIsOpen(true)}
+        aria-haspopup={onPreview ? undefined : 'dialog'}
+        onClick={() => (onPreview ? onPreview() : setIsOpen(true))}
         className={cn(
           'relative mt-1 w-full max-w-lg cursor-pointer overflow-hidden rounded-lg border border-border-light text-text-secondary-alt shadow-md transition-shadow',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface-primary',

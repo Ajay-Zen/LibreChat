@@ -5,6 +5,7 @@ import type { ExtendedFile } from '~/common';
 import { useDeleteFilesMutation } from '~/data-provider';
 import { logger, getCachedPreview } from '~/utils';
 import { useFileDeletion } from '~/hooks/Files';
+import useFilePreview from '~/hooks/Artifacts/useFilePreview';
 import FileContainer from './FileContainer';
 import { useLocalize } from '~/hooks';
 import Image from './Image';
@@ -34,6 +35,7 @@ export default function FileRow({
 }) {
   const localize = useLocalize();
   const { showToast } = useToastContext();
+  const { previewFile } = useFilePreview();
   const files = Array.from(_files?.values() ?? []).filter((file) =>
     fileFilter ? fileFilter(file) : true,
   );
@@ -124,6 +126,7 @@ export default function FileRow({
               deleteFile({ file, setFiles });
             };
             const isImage = file.type?.startsWith('image') ?? false;
+            const previewUrl = getCachedPreview(file.file_id) ?? file.preview ?? file.filepath;
 
             return (
               <div
@@ -136,13 +139,18 @@ export default function FileRow({
               >
                 {isImage ? (
                   <Image
-                    url={getCachedPreview(file.file_id) ?? file.preview ?? file.filepath}
+                    url={previewUrl}
                     onDelete={handleDelete}
                     progress={file.progress}
                     source={file.source}
+                    onPreview={() => void previewFile({ ...file, preview: previewUrl })}
                   />
                 ) : (
-                  <FileContainer file={file} onDelete={handleDelete} />
+                  <FileContainer
+                    file={file}
+                    onDelete={handleDelete}
+                    onClick={() => void previewFile(file)}
+                  />
                 )}
               </div>
             );

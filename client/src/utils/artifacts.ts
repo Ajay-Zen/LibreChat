@@ -1,5 +1,5 @@
 import dedent from 'dedent';
-import { excelMimeTypes, shadcnComponents } from 'librechat-data-provider';
+import { excelMimeTypes, imageExtRegex, shadcnComponents } from 'librechat-data-provider';
 import type {
   SandpackProviderProps,
   SandpackPredefinedTemplate,
@@ -292,6 +292,13 @@ export const TOOL_ARTIFACT_TYPES = {
   DOCX: 'application/vnd.librechat.docx-preview',
   SPREADSHEET: 'application/vnd.librechat.spreadsheet-preview',
   PRESENTATION: 'application/vnd.librechat.presentation-preview',
+  /* Media previews rendered directly from the file URL (not Sandpack).
+   * `content` holds the fetchable URL rather than text. `ArtifactTabs`
+   * branches on these to render an <img>/<iframe>; they are preview-only
+   * (no source view) and are produced by `fileToPreviewArtifact` for the
+   * tap-to-preview flow rather than by the tool-output routing tree. */
+  IMAGE: 'application/vnd.librechat.image-preview',
+  PDF: 'application/vnd.librechat.pdf-preview',
 } as const;
 
 export type ToolArtifactType = (typeof TOOL_ARTIFACT_TYPES)[keyof typeof TOOL_ARTIFACT_TYPES];
@@ -320,7 +327,27 @@ const PREVIEW_ONLY_ARTIFACT_TYPES: ReadonlySet<ToolArtifactType> = new Set([
   TOOL_ARTIFACT_TYPES.DOCX,
   TOOL_ARTIFACT_TYPES.SPREADSHEET,
   TOOL_ARTIFACT_TYPES.PRESENTATION,
+  TOOL_ARTIFACT_TYPES.IMAGE,
+  TOOL_ARTIFACT_TYPES.PDF,
 ]);
+
+/**
+ * Media artifacts whose preview is rendered directly from a file URL
+ * (image/pdf) rather than through Sandpack. `ArtifactTabs` branches on
+ * this to render an `<img>`/`<iframe>`, and `DownloadArtifact` downloads
+ * straight from the URL instead of treating `content` as text.
+ */
+const MEDIA_ARTIFACT_TYPES: ReadonlySet<ToolArtifactType> = new Set([
+  TOOL_ARTIFACT_TYPES.IMAGE,
+  TOOL_ARTIFACT_TYPES.PDF,
+]);
+
+export function isMediaArtifact(type: string | null | undefined): boolean {
+  if (type == null) {
+    return false;
+  }
+  return MEDIA_ARTIFACT_TYPES.has(type as ToolArtifactType);
+}
 
 export function isPreviewOnlyArtifact(type: string | null | undefined): boolean {
   if (type == null) {
@@ -890,6 +917,49 @@ export function fileToArtifact(
     messageId: attachment.messageId ?? undefined,
     lastUpdateTime: toLastUpdate(attachment),
   };
+}
+
+interface PreviewFileInput {
+  file_id?: string;
+  filename?: string;
+  filepath?: string;
+  type?: string;
+  /** Local object URL set on composer-staged files before upload completes. */
+  preview?: string;
+  text?: string;
+  textFormat?: 'html' | 'text' | null;
+  updatedAt?: string | Date;
+  createdAt?: string | Date;
+  messageId?: string;
+}
+
+/**
+ * Build an `Artifact` for the tap-to-preview flow from any file-like
+ * object (a persisted `TFile`, a message `TAttachment`, or a
+ * composer-staged `ExtendedFile`). Images and PDFs become media artifacts
+ * whose `content` is the fetchable URL; every other type falls through to
+ * the text-backed `fileToArtifact` pipeline (html/react/markdown/code/
+ * office). Returns `null` when there's nothing we can preview — the
+ * caller then falls back to its default behaviour (e.g. download).
+ */
+export function fileToPreviewArtifact(file: PreviewFileInput): Artifact | null {
+  const url = file.filepath ?? file.preview ?? '';
+  const filename = file.filename ?? '';
+  const isImage =
+    (file.type?.startsWith('image/') ?? false) || (filename ? imageExtRegex.test(filename) : false);
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(filename);
+
+  if ((isImage || isPdf) && url) {
+    return {
+      id: toolArtifactKey(file),
+      type: isImage ? TOOL_ARTIFACT_TYPES.IMAGE : TOOL_ARTIFACT_TYPES.PDF,
+      title: filename || (isImage ? 'Image' : 'Document'),
+      content: url,
+      lastUpdateTime: toLastUpdate(file),
+    };
+  }
+
+  return fileToArtifact(file);
 }
 
 export const sharedFiles = {

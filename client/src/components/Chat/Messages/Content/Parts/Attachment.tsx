@@ -19,6 +19,7 @@ import { fileToArtifact, TOOL_ARTIFACT_TYPES } from '~/utils/artifacts';
 import Image from '~/components/Chat/Messages/Content/Image';
 import ToolMermaidArtifact from './ToolMermaidArtifact';
 import ToolArtifactCard from './ToolArtifactCard';
+import useFilePreview from '~/hooks/Artifacts/useFilePreview';
 import { useAttachmentLink } from './LogLink';
 import { useLocalize, useAttachmentPreviewSync, useExpandCollapse } from '~/hooks';
 import { cn, getFileType } from '~/utils';
@@ -121,6 +122,7 @@ PreviewPlaceholderCard.displayName = 'PreviewPlaceholderCard';
 const FileAttachment = memo(({ attachment }: { attachment: Partial<TAttachment> }) => {
   const [isVisible, setIsVisible] = useState(false);
   const file = attachment as TFile & TAttachmentMetadata;
+  const { openPreview } = useFilePreview();
   const { handleDownload } = useAttachmentLink({
     href: attachment.filepath ?? '',
     filename: attachment.filename ?? '',
@@ -128,6 +130,13 @@ const FileAttachment = memo(({ attachment }: { attachment: Partial<TAttachment> 
     user: file.user,
     source: file.source,
   });
+  /* Tap opens the right-side preview for files we can render (e.g. PDFs);
+   * non-previewable types fall back to the original download action. */
+  const handleClick: React.MouseEventHandler<HTMLButtonElement> = (e) => {
+    if (!openPreview(file)) {
+      handleDownload(e);
+    }
+  };
   const extension = attachment.filename?.split('.').pop();
   /* Bridge the deferred-preview lifecycle: poll the backend for the
    * resolved record while the file is still pending. The hook is a
@@ -187,7 +196,7 @@ const FileAttachment = memo(({ attachment }: { attachment: Partial<TAttachment> 
     >
       <FileContainer
         file={attachment}
-        onClick={handleDownload}
+        onClick={handleClick}
         overrideType={extension}
         displayName={displayFilename(attachment.filename)}
         containerClassName="max-w-fit"
@@ -426,7 +435,9 @@ const TextAttachment = memo(
 
 const ImageAttachment = memo(({ attachment }: { attachment: TAttachment }) => {
   const [isLoaded, setIsLoaded] = useState(false);
-  const { width, height, filepath = null } = attachment as TFile & TAttachmentMetadata;
+  const { togglePreview } = useFilePreview();
+  const file = attachment as TFile & TAttachmentMetadata;
+  const { width, height, filepath = null } = file;
 
   useEffect(() => {
     setIsLoaded(false);
@@ -453,6 +464,7 @@ const ImageAttachment = memo(({ attachment }: { attachment: TAttachment }) => {
         width={width}
         height={height}
         className="mb-4"
+        onPreview={() => togglePreview(file)}
       />
     </div>
   );

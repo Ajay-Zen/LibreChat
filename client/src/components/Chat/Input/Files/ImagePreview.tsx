@@ -21,6 +21,7 @@ const ImagePreview = ({
   className = '',
   source,
   alt = 'Preview image',
+  onPreview,
 }: {
   imageBase64?: string;
   url?: string;
@@ -28,6 +29,9 @@ const ImagePreview = ({
   className?: string;
   source?: FileSources;
   alt?: string;
+  /** When provided, tapping the thumbnail runs this (open right-side
+   * preview) instead of the built-in full-size modal. */
+  onPreview?: () => void;
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -124,6 +128,10 @@ const ImagePreview = ({
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
+          if (onPreview) {
+            onPreview();
+            return;
+          }
           openModal();
         }}
         onMouseEnter={() => setIsHovered(true)}

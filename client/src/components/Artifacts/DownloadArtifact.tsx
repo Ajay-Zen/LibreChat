@@ -4,6 +4,7 @@ import type { Artifact } from '~/common';
 import { Button } from '@librechat/client';
 import useArtifactProps from '~/hooks/Artifacts/useArtifactProps';
 import { useCodeState } from '~/Providers/EditorContext';
+import { isMediaArtifact } from '~/utils/artifacts';
 import { useLocalize } from '~/hooks';
 
 const DownloadArtifact = ({ artifact }: { artifact: Artifact }) => {
@@ -12,8 +13,31 @@ const DownloadArtifact = ({ artifact }: { artifact: Artifact }) => {
   const [isDownloaded, setIsDownloaded] = useState(false);
   const { fileKey: fileName } = useArtifactProps({ artifact });
 
+  const markDownloaded = () => {
+    setIsDownloaded(true);
+    setTimeout(() => setIsDownloaded(false), 3000);
+  };
+
   const handleDownload = () => {
     try {
+      /* Media artifacts (image/pdf) store a fetchable URL in `content`,
+       * not text — link straight to it rather than wrapping the URL
+       * string in a Blob. */
+      if (isMediaArtifact(artifact.type)) {
+        const href = artifact.content ?? '';
+        if (!href) {
+          return;
+        }
+        const link = document.createElement('a');
+        link.href = href;
+        link.download = artifact.title ?? fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        markDownloaded();
+        return;
+      }
+
       const content = currentCode ?? artifact.content ?? '';
       if (!content) {
         return;
@@ -27,8 +51,7 @@ const DownloadArtifact = ({ artifact }: { artifact: Artifact }) => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      setIsDownloaded(true);
-      setTimeout(() => setIsDownloaded(false), 3000);
+      markDownloaded();
     } catch (error) {
       console.error('Download failed:', error);
     }

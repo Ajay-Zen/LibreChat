@@ -17,6 +17,16 @@ jest.mock('~/hooks/Files', () => ({
   useFileDeletion: jest.fn(),
 }));
 
+jest.mock('~/hooks/Artifacts/useFilePreview', () => ({
+  __esModule: true,
+  default: () => ({
+    openPreview: jest.fn(),
+    togglePreview: jest.fn(),
+    previewFile: jest.fn(),
+    currentArtifactId: null,
+  }),
+}));
+
 jest.mock('~/utils', () => ({
   logger: {
     log: jest.fn(),

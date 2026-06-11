@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
+import { apiBaseUrl } from 'librechat-data-provider';
 import type { SandpackPreviewRef } from '@codesandbox/sandpack-react/unstyled';
 import type { editor } from 'monaco-editor';
 import type { Artifact } from '~/common';
@@ -7,7 +8,40 @@ import { useCodeState } from '~/Providers/EditorContext';
 import useArtifactProps from '~/hooks/Artifacts/useArtifactProps';
 import { ArtifactCodeEditor } from './ArtifactCodeEditor';
 import { useGetStartupConfig } from '~/data-provider';
+import { isMediaArtifact, TOOL_ARTIFACT_TYPES } from '~/utils/artifacts';
 import { ArtifactPreview } from './ArtifactPreview';
+
+/**
+ * Resolve a stored file URL to something the browser can fetch. Absolute
+ * URLs, data URIs, and composer object URLs (`blob:`) are used as-is;
+ * server-relative paths (`/api/...`, `/images/...`) are prefixed with the
+ * API base — mirroring the chat image renderer.
+ */
+function resolveMediaUrl(url: string): string {
+  if (!url || /^(https?:|data:|blob:)/.test(url)) {
+    return url;
+  }
+  return `${apiBaseUrl()}${url}`;
+}
+
+function MediaArtifact({ artifact }: { artifact: Artifact }) {
+  const src = resolveMediaUrl(artifact.content ?? '');
+  if (!src) {
+    return null;
+  }
+  if (artifact.type === TOOL_ARTIFACT_TYPES.PDF) {
+    return <iframe title={artifact.title ?? 'PDF'} src={src} className="h-full w-full border-0" />;
+  }
+  return (
+    <div className="flex h-full w-full items-center justify-center overflow-auto bg-surface-primary-alt p-2">
+      <img
+        src={src}
+        alt={artifact.title ?? 'Image preview'}
+        className="max-h-full max-w-full object-contain"
+      />
+    </div>
+  );
+}
 
 export default function ArtifactTabs({
   artifact,
@@ -31,6 +65,18 @@ export default function ArtifactTabs({
   }, [setCurrentCode, artifact.id]);
 
   const { files, fileKey, template, sharedProps } = useArtifactProps({ artifact });
+
+  if (isMediaArtifact(artifact.type)) {
+    return (
+      <Tabs.Content
+        value="preview"
+        className="h-full w-full flex-grow overflow-hidden"
+        tabIndex={-1}
+      >
+        <MediaArtifact artifact={artifact} />
+      </Tabs.Content>
+    );
+  }
 
   return (
     <div className="flex h-full w-full flex-col">
